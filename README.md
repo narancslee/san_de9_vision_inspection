@@ -2,8 +2,9 @@
 
 An offline Python foundation for measuring a single bright planar rectangle in a
 calibrated grayscale image. It estimates a **minimum-area enclosing rectangle**
-in millimeters. It has no ROS2 integration, cell control, conformity decision,
-nominal-size input or learned size correction.
+in millimeters. A separate ROS-independent decision function compares measured
+dimensions with configured tolerances and guards. There is no ROS2 integration,
+cell control, nominal-size input to the estimator or learned size correction.
 
 Execution and independent geometric controls have been verified. The unavailable
 historical prototype's measurement correction remains unverified; this candidate
@@ -18,6 +19,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install '.[test]'
 python examples/offline_rectangle.py
+python examples/offline_decision.py
 python -m pytest -q -s
 ```
 
@@ -53,6 +55,67 @@ print(f"Width:  {result.width_mm:.3f} mm")
 For a real image, replace the fixture with a 2D `np.uint8` grayscale array
 (for example `cv2.imread(path, cv2.IMREAD_GRAYSCALE)`, checking for `None`). Supply
 independently measured calibration correspondences from the same imaging setup.
+
+## Dimensional decisions
+
+```python
+from vision_inspection import InspectionDecision, classify_measurement
+
+# result is the RectangleMeasurement returned by measure_rectangle above.
+decision = classify_measurement(result, (39.5, 40.5), (19.5, 20.5))
+guarded = classify_measurement(
+    result, (39.5, 40.5), (19.5, 20.5),
+    length_guard_mm=0.75, width_guard_mm=0.75,
+)
+print(decision.value)
+print(guarded.value)
+```
+
+API: `classify_measurement(measurement, length_limits_mm, width_limits_mm, *,
+length_guard_mm=0.0, width_guard_mm=0.0) -> InspectionDecision`.
+The enum values are `ACCEPT`, `REJECT` and `REVIEW` (with matching string values).
+
+- `measurement` must be a `RectangleMeasurement`. Its sides must be finite,
+  positive real scalars, with `length_mm >= width_mm`; a square is valid.
+- Each tolerance is a two-element tuple or list of finite positive real scalars
+  `(lower_mm, upper_mm)`, with `lower_mm <= upper_mm`. Equal endpoints are valid.
+- Guards are finite nonnegative real scalars, explicitly in **millimeters**.
+  Scalars must implement `numbers.Real`; bool, text and complex values are
+  rejected. NumPy real scalars and `fractions.Fraction` are supported.
+- Sign, finiteness and ordering are checked before and after conversion to
+  Python floats. Positive sides and tolerance endpoints must not underflow to
+  zero. A negative guard is invalid even if it would round to negative zero.
+  Positive guards may round to zero; arithmetic uses the resulting floats.
+- Each guarded dimension is `[value - guard, value + guard]`. Endpoints must
+  remain finite. A guard may exceed the dimension; negative lower endpoints
+  are not clipped. Tolerances and sides are never reordered.
+- Inputs are unchanged. `corners_mm` is unused and is not geometrically checked.
+
+`ACCEPT` means **both** guarded intervals are wholly inside their own closed
+tolerances. `REJECT` means **at least one** interval is disjoint from its
+tolerance. Every other valid case is `REVIEW`, including external contact.
+Zero guards give an ordinary inclusive tolerance test. Comparisons have no
+epsilon or rounding step. All inputs and interval endpoints are validated before
+deciding: invalid data raises `ValueError`, never `REVIEW` or an early `REJECT`.
+Incorrect Python call syntax, such as a missing argument, raises `TypeError`.
+
+For length tolerance `[39, 41]` and width tolerance `[19, 21]`, all in mm:
+
+| Measured length x width | Length / width guard | Decision |
+| --- | --- | --- |
+| 39 x 21 | 0 / 0 | ACCEPT |
+| 40 x 20 | 1 / 1 | ACCEPT |
+| 38.5 x 20 | 0.5 / 0 | REVIEW (external contact) |
+| 39 x 20 | 0.5 / 0 | REVIEW (partial overlap) |
+| 40 x 20 | 2 / 0 | REVIEW (interval surrounds tolerance) |
+| 38 x 19 | 0.5 / 0.5 | REJECT (length is disjoint) |
+
+Run `python examples/offline_decision.py` after installation for image generation,
+the existing measurement pipeline, and decisions with zero and positive guards.
+The `0.75 mm` guards are illustrative **configured assumptions**, not estimates
+from the synthetic tests' maximum errors, calibrated uncertainties or confidence
+intervals. These decisions do not certify physical product conformity or the
+measurement's accuracy. Choosing defensible guards requires separate evidence.
 
 ## Coordinates, calibration and measurement plane
 
@@ -117,6 +180,11 @@ results and the historical baseline's status. Synthetic tests are numerical
 regressions, not a real-camera accuracy or tolerance claim. Raw campaign outputs,
 virtual environments, caches and build artifacts are excluded from the candidate.
 
+Decision tests cover interval rules, numeric validation and input preservation;
+an image-to-decision control checks integration. They do not establish that a
+configured guard covers real measurement errors. The results in `validation.md`
+describe the earlier measurement baseline, not validation of the new decision API.
+
 This repository was initially empty. The requested
 `inspection-prototype-20261019.zip` was not found in the readable portion of
 `~/Downloads`; an unrelated project's `scripts/__pycache__` was inaccessible.
@@ -161,8 +229,9 @@ No project `LICENSE` or license expression has been fabricated.
   check. Near-degenerate configurations and extreme coordinate scales may be
   unreliable even when they pass numerical checks. Inputs near a horizon are
   rejected, but there is no application-specific conditioning threshold.
-- There is no uncertainty budget, traceable calibration, real-image validation,
-  automatic polarity/threshold selection, or classification strategy.
+- There is no uncertainty budget, traceable calibration, real-image validation
+  or automatic polarity/threshold selection. Decision guards do not estimate
+  these missing effects.
 - Only the recorded Python/dependency combination was executed. Minimum supported
   versions are declared compatibility bounds, not a tested version matrix.
 
