@@ -7,7 +7,7 @@ name = "vision-dimensional-inspection"
 version = "0.1.0"
 description = "Offline planar rectangle measurement from calibrated grayscale images"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = ["numpy>=2.0,<3", "opencv-python-headless>=4.10,<5"]
 
 [project.optional-dependencies]

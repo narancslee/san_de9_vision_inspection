@@ -1,0 +1,23 @@
+# Allow only the development inputs. This excludes Git metadata, credentials,
+# virtual environments, caches, logs and local build outputs, wherever located.
+**
+!Containerfile
+!.containerignore
+!pyproject.toml
+!MANIFEST.in
+!README.md
+!validation.md
+!constraints/
+constraints/**
+!constraints/humble.txt
+!src/
+src/**
+!src/vision_inspection/
+src/vision_inspection/**
+!src/vision_inspection/*.py
+!examples/
+examples/**
+!examples/*.py
+!tests/
+tests/**
+!tests/*.py
