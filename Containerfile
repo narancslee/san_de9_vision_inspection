@@ -20,5 +20,17 @@ RUN python -m build --no-isolation \
     && python -m pip install --constraint /opt/constraints/humble.txt dist/*.whl \
     && python -m pip check
 
+# Supply --build-context inspection_ros=./ros2/inspection_ros (see README).
+COPY --from=inspection_ros /package.xml /setup.py /setup.cfg /opt/inspection_ws/src/inspection_ros/
+COPY --from=inspection_ros /resource/inspection_ros /opt/inspection_ws/src/inspection_ros/resource/inspection_ros
+COPY --from=inspection_ros /inspection_ros/*.py /opt/inspection_ws/src/inspection_ros/inspection_ros/
+COPY --from=inspection_ros /test/*.py /opt/inspection_ws/src/inspection_ros/test/
+# colcon and its ament_python support are already in the pinned ros-base image.
+# Invoke colcon with the venv interpreter so installed entrypoints use it too.
+RUN . /opt/ros/humble/setup.sh \
+    && cd /opt/inspection_ws \
+    && python /usr/bin/colcon build --packages-select inspection_ros \
+    && python -m pip check
+
 # The inherited official entrypoint sources /opt/ros/humble/setup.bash.
 CMD ["bash"]
