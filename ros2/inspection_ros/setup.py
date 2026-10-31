@@ -8,6 +8,7 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/inspection_ros"]),
         ("share/inspection_ros", ["package.xml"]),
+        ("share/inspection_ros/config", ["config/synthetic_calibration.yaml"]),
     ],
     install_requires=["setuptools", "vision-dimensional-inspection"],
     extras_require={"test": ["pytest>=8,<10"]},
@@ -19,6 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "synthetic_camera = inspection_ros.synthetic_camera:main",
+            "measurement_node = inspection_ros.measurement_node:main",
         ],
     },
 )

@@ -1,0 +1,8 @@
+# Synthetic fixture only; this is not a real-camera calibration.
+measurement_node:
+  ros__parameters:
+    image_width: 320
+    image_height: 240
+    frame_id: inspection_camera_optical_frame
+    pixel_points: [40.0, 40.0, 280.0, 40.0, 280.0, 220.0, 40.0, 220.0]
+    plane_points_mm: [-30.0, -20.0, 30.0, -20.0, 30.0, 20.0, -30.0, 20.0]
