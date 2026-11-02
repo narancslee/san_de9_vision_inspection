@@ -509,3 +509,45 @@ cd /opt/inspection_ws
 ROS_DOMAIN_ID=125 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python /usr/bin/colcon test --event-handlers console_direct+
 python /usr/bin/colcon test-result --verbose
 ```
+
+### ROS dimensional decision
+
+With the overlay sourced, start the synthetic camera and measurement node as
+above, then start the decision node in another shell:
+
+```sh
+ros2 run inspection_ros decision_node
+```
+
+In a separate shell with the same overlay sourced, observe the decisions:
+
+```sh
+ros2 topic echo /inspection/decision
+```
+
+The node subscribes to `/inspection/rectangle_measurement`
+(`inspection_interfaces/msg/RectangleMeasurement`) and publishes
+`/inspection/decision` (`inspection_interfaces/msg/InspectionDecision`). Both
+use reliable, volatile QoS, keep-last depth 1. The decision message preserves
+the original image `header` and the processed `length_mm` and `width_mm`.
+Its `uint8 decision` is one of the message constants `ACCEPT=1`, `REVIEW=2`,
+`REJECT=3`; zero is reserved and is never published as a decision.
+
+Startup-only, read-only ROS DOUBLE parameters are `length_min_mm` (39.0),
+`length_max_mm` (41.0), `width_min_mm` (19.0), `width_max_mm` (21.0),
+`length_guard_mm` (0.1), and `width_guard_mm` (0.1). For example, use
+`--ros-args -p length_min_mm:=39.0 -p length_max_mm:=41.0`. These defaults
+are **examples for the synthetic fixture**, not product specifications. Each
+limit must be finite and positive, each minimum no greater than its maximum;
+guards must be finite and nonnegative. Invalid configuration fails startup.
+The configured guards are assumptions, not measured uncertainty. The offline
+classifier applies them as symmetric intervals: both intervals within the
+closed tolerances mean ACCEPT; a disjoint interval means REJECT; otherwise the
+result is REVIEW. Invalid or nonfinite measurements produce a warning and no
+output; later valid measurements remain processable.
+
+This synthetic demonstration does not establish real-camera accuracy, individual
+part identity, or quality compliance. A missing measurement produces no decision:
+consumers must handle missing data, freshness and repeated images themselves.
+The node does not validate rectangle geometry or associate results with unique
+parts. SIGINT and SIGTERM stop it cleanly.

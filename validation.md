@@ -142,3 +142,56 @@ requiring additional notices were found in the candidate. Dependency licensing
 is documented without assigning project ownership. Historical-baseline recovery,
 real-camera validation and a project-license choice remain open items, rather
 than claims of completed measurement correction or a licensed release.
+
+## ROS dimensional decision validation (2026-11-02)
+
+The work started at `7b1baac829eea9fbf142b8d73be5c8d589cef0ef` with a
+clean working tree. The repository Git identity was Sánta Roland
+`<santaroland7@gmail.com>`. The host filesystem had 2.8 GB available at the
+start. Docker's socket was inaccessible; the existing local Podman image
+`localhost/inspection-ros-candidate:20261030-zdmhitgi` was used without
+modifying any other project's containers. The image's installed offline Python
+modules matched the checkout's `src/vision_inspection/*.py` by SHA-256.
+
+The following commands were run from the repository root on the host. The
+container mounts the checkout read-only; `--security-opt label=disable` avoids
+relabeling its files. The workspace is an independent copy in the temporary
+container:
+
+```sh
+podman run -d --rm --name inspection-decision-temp --security-opt label=disable -v "$PWD:/candidate:ro" localhost/inspection-ros-candidate:20261030-zdmhitgi sleep infinity
+podman exec inspection-decision-temp bash -lc 'set -e; mkdir -p /tmp/decision_ws/src; cp -a /candidate/ros2/inspection_interfaces /candidate/ros2/inspection_ros /tmp/decision_ws/src/; source /opt/ros/humble/setup.bash; cd /tmp/decision_ws; python /usr/bin/colcon build --packages-up-to inspection_ros; python -m pip check'
+podman exec inspection-decision-temp bash -lc 'cd /tmp; PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p no:cacheprovider /candidate/tests'
+podman exec inspection-decision-temp bash -lc 'cp /candidate/ros2/inspection_ros/test/test_decision_process.py /tmp/decision_ws/src/inspection_ros/test/; source /opt/ros/humble/setup.bash; source /tmp/decision_ws/install/setup.bash; cd /tmp/decision_ws/src/inspection_ros; ROS_DOMAIN_ID=126 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -s test/test_decision_process.py'
+podman exec inspection-decision-temp cp /candidate/ros2/inspection_ros/test/test_decision.py /tmp/decision_ws/src/inspection_ros/test/test_decision.py
+podman exec inspection-decision-temp bash -lc 'set -e; source /opt/ros/humble/setup.bash; source /tmp/decision_ws/install/setup.bash; cd /tmp/decision_ws; ROS_DOMAIN_ID=125 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python /usr/bin/colcon test --event-handlers console_direct+; python /usr/bin/colcon test-result --verbose'
+podman rm -f inspection-decision-temp
+```
+
+The two affected packages built successfully under ROS 2 Humble, and `pip check`
+reported no broken requirements. The offline suite passed 297 tests. The
+isolated decision process test passed 5 tests, including the installed
+`ros2 run` entrypoint from `/tmp`, SIGINT and SIGTERM for the node, and a
+nonzero exit with a diagnostic for an invalid startup configuration. The full
+ROS regression passed 96 tests with no failures or skips. The process test used
+separate installed camera, measurement and decision processes and a DDS observer. For one matched
+image header it recorded **ACCEPT through the complete synthetic image chain**,
+with measurement 40.041806 x 20.041624 mm. REVIEW (39.0 x 20.0 mm) and
+REJECT (42.0 x 20.0 mm) were tested by **direct measurement message**, not
+through the image chain. A direct NaN measurement emitted no decision, and a
+subsequent 40.0 x 20.0 mm measurement produced ACCEPT. The test checked matching
+headers and dimensions and the discovered decision publisher's reliable,
+volatile QoS; adapter tests check both endpoints' explicit depth and policies.
+
+The initial full ROS run had 92 passes and one failed test: its test harness sent
+SIGINT only to the `ros2 run` launcher, leaving the child running until the
+10-second timeout. The harness was corrected to use installed executables for
+individual process signals and a separate process-group test for `ros2 run`.
+The initial offline run also passed 297 tests with a harmless warning because
+pytest could not create a cache on the read-only checkout; the command above
+reran it without the cache plugin and without that warning.
+
+These are synthetic functional checks, not real-camera accuracy, product
+conformity, or individual-part tracking. Missing measurements, freshness, and
+repeated images remain the consumer's responsibility. The defaults and guards
+are example assumptions, not product tolerances or measured uncertainty.

@@ -21,6 +21,7 @@ setup(
         "console_scripts": [
             "synthetic_camera = inspection_ros.synthetic_camera:main",
             "measurement_node = inspection_ros.measurement_node:main",
+            "decision_node = inspection_ros.decision_node:main",
         ],
     },
 )
