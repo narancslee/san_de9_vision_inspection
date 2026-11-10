@@ -195,3 +195,29 @@ These are synthetic functional checks, not real-camera accuracy, product
 conformity, or individual-part tracking. Missing measurements, freshness, and
 repeated images remain the consumer's responsibility. The defaults and guards
 are example assumptions, not product tolerances or measured uncertainty.
+
+## Simulated cell validation (2026-11-10)
+
+The starting commit was `34032280a368842dd6e5febb4649c54f37b79c17`.
+In the existing rootless Podman ROS 2 Humble image, both affected packages
+built successfully. An initial ROS regression passed 113 tests; afterwards
+the future-stamp rule was tightened to reject all future timestamps.
+On the resulting source, the targeted cell logic and separate-process
+integration tests passed 18 tests. A final fresh Humble build and the full
+ROS package regression then passed 114 tests with zero failures or skips.
+The unchanged offline suite was not repeated; previous offline results above
+remain historical.
+
+The separate-process test observed one correlated synthetic image →
+measurement → ACCEPT decision → ACCEPT cell state using matching source
+headers. After the image source and upstream nodes were stopped, the cell
+became UNAVAILABLE with reason `stale`. REVIEW, REJECT, invalid dimensions
+and subsequent ACCEPT recovery were exercised using directly injected ROS
+decision messages, not full image chains. The test also exercised clean
+SIGINT and SIGTERM stops of the separate nodes.
+
+An initial targeted invocation failed before build because ROS Humble's
+setup script referenced an unset variable under shell `nounset`; the corrected
+run did not enable `nounset` while sourcing ROS. Build and targeted test
+logs were recorded locally in `/tmp/inspection-cell-validation-20261110/`.
+These checks demonstrate the stated synthetic configuration only.

@@ -551,3 +551,39 @@ part identity, or quality compliance. A missing measurement produces no decision
 consumers must handle missing data, freshness and repeated images themselves.
 The node does not validate rectangle geometry or associate results with unique
 parts. SIGINT and SIGTERM stop it cleanly.
+
+### Simulated cell state
+
+After starting the synthetic camera, measurement node and decision node as
+described above, start the cell node in another sourced shell:
+
+```sh
+ros2 run inspection_ros cell_node
+```
+
+In a separate sourced shell, observe the periodic state:
+
+```sh
+ros2 topic echo /inspection/cell_state
+```
+
+The node subscribes to `/inspection/decision` and publishes
+`inspection_interfaces/msg/CellState` on `/inspection/cell_state`, using
+reliable, volatile, keep-last depth 1 QoS. State is ACCEPT, REVIEW or REJECT
+for a fresh valid decision; otherwise it is UNAVAILABLE. The `reason` field is
+`waiting`, `fresh`, `invalid` or `stale`. A fresh state preserves the
+source image header. The header is empty when unavailable.
+
+Read-only startup parameter `timeout_seconds` defaults to 3.0 seconds and
+must be finite and positive. The node rejects invalid dimensions, codes,
+missing, future, old, repeated or out-of-order source stamps. The ROS clock
+must advance consistently with the source stamp; after a backward jump that
+prevents new stamps exceeding the last accepted stamp, restart the node.
+A steady-clock timer marks data stale when either source age or local receipt
+age exceeds the timeout, including when simulation time stops. Publishing is
+periodic, so a consumer must independently handle a missing publisher.
+
+These are simulated frame-level indications, not real actuator commands or
+physical-part tracking. The camera repeats a fixture; a new frame is not a
+new product. No real-camera precision, certified quality decision, hardware
+stopping or independent watchdog is established.

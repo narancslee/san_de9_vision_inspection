@@ -7,6 +7,7 @@ find_package(std_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RectangleMeasurement.msg"
   "msg/InspectionDecision.msg"
+  "msg/CellState.msg"
   DEPENDENCIES std_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)

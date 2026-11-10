@@ -22,6 +22,7 @@ setup(
             "synthetic_camera = inspection_ros.synthetic_camera:main",
             "measurement_node = inspection_ros.measurement_node:main",
             "decision_node = inspection_ros.decision_node:main",
+            "cell_node = inspection_ros.cell_node:main",
         ],
     },
 )
